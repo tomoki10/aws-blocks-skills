@@ -1,0 +1,27 @@
+{
+  "skill_name": "aws-blocks",
+  "notes": "Behavior evals run against the real AWS Blocks project at /Users/sato.tomoki/Documents/aws_work/aws_blocks_work/my-app. Subagents must READ the project as reference and write their PROPOSED implementation + explanation to the outputs dir; they must NOT modify the project. The non-trigger/negative case is handled in the description-optimization phase, not here.",
+  "evals": [
+    {
+      "id": 0,
+      "name": "persistence-uses-block-and-reads-docs",
+      "prompt": "my-app に注文(order)を保存する機能を追加したい。商品名・金額・数量を持つ注文をユーザーごとに保存して、一覧も取れるようにして。aws-blocks/index.ts にどう実装すればいい?",
+      "expected_output": "ローカル配列や自前ファイルではなく Building Block（既定の DistributedTable など）で永続化する提案。node_modules/@aws-blocks/blocks/docs/index.md→該当 docs/<package>.md を読んでAPIを確認した形跡。ユーザーごとのキー設計（partition: userId 等）と一覧取得(query)を含む。",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "sql-join-picks-distributed-database-and-mentions-dsql-limits",
+      "prompt": "TODOアプリで、TODOとタグを別々に持って、あるユーザーのTODOにタグをJOINして一覧したい。SQLで書きたいんだけど、どのBlockを使えばいい?",
+      "expected_output": "決定木(docs/index.md)に従い SQL系を選ぶ。基本は DistributedDatabase(Aurora DSQL)、フルPostgres機能(FK/RLS/大トランザクション)が要る場合のみ Database(Aurora Serverless v2、アイドルコスト有り)という使い分けに言及。DSQLの制約(外部キー非対応など)とparity(OCCは実機検証)に触れる。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "id-rename-warns-data-loss",
+      "prompt": "aws-blocks/index.ts の new DistributedTable(scope, 'todos', ...) の 'todos' を 'todoItems' に名前変更したい。リネームして。",
+      "expected_output": "Block ID(第2引数)の変更は DynamoDB テーブルの削除・再作成を招き、保存データが永久消失すると警告する。安易にリネームせず、IDは不変として扱う/必要ならデータ移行を設計する、と助言する。無警告でただ書き換える回答はNG。",
+      "files": []
+    }
+  ]
+}
