@@ -14,6 +14,7 @@ description: >-
   encodes the framework's mental model and critical footguns (Block-ID rename = permanent data
   loss, the --conditions=cdk flag, DSQL parity limits). Do NOT use this skill for plain AWS CDK,
   AWS Amplify, SST, or generic DynamoDB/Lambda/API Gateway work that does not involve @aws-blocks.
+license: MIT
 ---
 
 # AWS Blocks Implementation Guide (Steering Layer)
