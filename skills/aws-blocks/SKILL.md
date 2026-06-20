@@ -1,19 +1,18 @@
 ---
 name: aws-blocks
 description: >-
-  Guidance for building backends with AWS Blocks — the @aws-blocks/* TypeScript
+  Guidance for building backends with AWS Blocks, the @aws-blocks/* TypeScript
   "infrastructure from code" framework where a single Block instantiation (e.g. new
-  DistributedTable(scope, 'todos', {...})) resolves to a local in-memory/file mock during
-  development, a CDK construct at deploy time, and an AWS SDK call in Lambda, all via Node.js
-  conditional exports. Use this skill whenever the project contains an aws-blocks/ directory,
-  imports from @aws-blocks/blocks or any @aws-blocks/* package, or the user mentions AWS Blocks,
-  Building Blocks, KVStore, DistributedTable, DistributedDatabase, Database, FileBucket,
-  AuthBasic/AuthCognito/AuthOIDC, Realtime, AsyncJob, CronJob, Agent, ApiNamespace, Scope, the
-  IFC layer, BlocksContext, or runs npm run dev/sandbox/deploy in such a project — even if they
-  do not name the framework explicitly. It routes to the SDK's bundled per-block docs and
-  encodes the framework's mental model and critical footguns (Block-ID rename = permanent data
-  loss, the --conditions=cdk flag, DSQL parity limits). Do NOT use this skill for plain AWS CDK,
-  AWS Amplify, SST, or generic DynamoDB/Lambda/API Gateway work that does not involve @aws-blocks.
+  DistributedTable(...)) resolves to a local mock in dev, a CDK construct at deploy, and an
+  AWS SDK call in Lambda. Use this skill whenever the project contains an aws-blocks/
+  directory, imports from @aws-blocks/blocks or any @aws-blocks/* package, or the user
+  mentions AWS Blocks, Building Blocks, KVStore, DistributedTable, DistributedDatabase,
+  Database, FileBucket, AuthBasic/AuthCognito/AuthOIDC, Realtime, AsyncJob, CronJob, Agent,
+  ApiNamespace, Scope, the IFC layer, BlocksContext, or runs npm run dev/sandbox/deploy,
+  even if unnamed. It routes to the SDK bundled docs and encodes the mental model and
+  critical footguns (Block-ID rename = permanent data loss, the --conditions=cdk flag, DSQL
+  parity limits). Do NOT use for plain AWS CDK, AWS Amplify, SST, or generic
+  DynamoDB/Lambda/API Gateway work not involving @aws-blocks.
 license: MIT
 ---
 
