@@ -1,0 +1,17 @@
+{
+  "sources": [
+    {
+      "id": "best-practices",
+      "url": "https://docs.aws.amazon.com/blocks/latest/devguide/best-practices.html",
+      "extract": "main-col-body",
+      "snapshot": "scripts/upstream/snapshots/best-practices.txt",
+      "content_sha256": "e5214b6e84377247f971f8b9890ff071237efc288b30aaae8d690ce4e7dcbddc",
+      "last_reviewed": "2026-06-20",
+      "derived_files": [
+        "skills/aws-blocks/references/best-practices.md",
+        "skills/aws-blocks/references/best-practices.ja.md",
+        "skills/aws-blocks/SKILL.md (## Best practices section)"
+      ]
+    }
+  ]
+}
