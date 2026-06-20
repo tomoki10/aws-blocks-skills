@@ -17,104 +17,106 @@ description: >-
 version: 1
 ---
 
-# AWS Blocks 実装ガイド（操舵レイヤー）
+# AWS Blocks Implementation Guide (Steering Layer)
 
-AWS Blocks は `@aws-blocks/*` の TypeScript「Infrastructure from Code」フレームワーク。
-このSkillは **薄い操舵レイヤー＋ルーター** です。APIリファレンスは持ちません。
-**正典はSDKに同梱されたドキュメント**（`node_modules/@aws-blocks/blocks/docs/`）にあり、それは
-インストール済みバージョンと常に一致します。このSkillの役割は、(1)正しいメンタルモデルを与え、
-(2)同梱docsへ誘導し、(3)致命的な落とし穴を未然に防ぐことです。
+AWS Blocks is the `@aws-blocks/*` TypeScript "Infrastructure from Code" framework.
+This skill is a **thin steering layer + router**. It is not an API reference.
+**The canonical docs ship inside the SDK** (`node_modules/@aws-blocks/blocks/docs/`) and always
+match the installed version. This skill's job is to (1) give you the correct mental model,
+(2) route you to the bundled docs, and (3) prevent the critical footguns before they happen.
 
-## ワンライナーのメンタルモデル
-あなたが書く `new DistributedTable(scope, 'todos', {...})` という**同じ1行**が、Node.jsの
-conditional exports によって実行コンテキストごとに**別の実装**へ解決される:
+## The one-liner mental model
+The **same single line** you write — `new DistributedTable(scope, 'todos', {...})` — resolves to a
+**different implementation** per execution context, via Node.js conditional exports:
 
-| コンテキスト | 解決される実装 | 振る舞い |
+| Context | Resolved implementation | Behavior |
 |---|---|---|
-| ローカル開発 `npm run dev` | mock（メモリ＋`.bb-data/`のJSON/PGlite） | AWS不要・オフライン |
-| CDK synth `npm run deploy/sandbox` | CDK construct | DynamoDB等のリソースを定義 |
-| Lambda 実行（本番） | AWS SDK 呼び出し | 実サービスへアクセス |
+| Local dev `npm run dev` | mock (in-memory + JSON/PGlite under `.bb-data/`) | No AWS, offline |
+| CDK synth `npm run deploy/sandbox` | CDK construct | Defines resources such as DynamoDB |
+| Lambda runtime (production) | AWS SDK calls | Hits the real services |
 
-コードは1つ。書き換え不要。詳細は [references/mental-model.md](references/mental-model.md)。
+One codebase. No rewrites. Details in [references/mental-model.md](references/mental-model.md).
 
-## 最重要ルール（必ず守る）
-1. **Blockを使う前に、その同梱docを必ず読む。** API・オプション・ローカル挙動・本番挙動・
-   ベストプラクティスが各ページに揃っている。場所:
+## Top rules (always follow)
+1. **Before using a Block, read its bundled doc.** Each page has the API, options, local behavior,
+   production behavior, and best practices. Location:
    `node_modules/@aws-blocks/blocks/docs/<package>.md`
-   （見つからなければ `find . -path '*@aws-blocks/blocks/docs/index.md' -not -path '*/.git/*'` で探す）。
-2. **永続化・クラウド抽象は必ず Building Block で行う。** ローカル配列・自前のファイル・
-   別のローカルDBを使わない（mockがその役割を担うため、Blockを使えばそのままAWSにデプロイできる）。
-3. **JSON-RPCトランスポートは透過。** RPCペイロードを手で組まない。型付きAPIを
-   `import { api } from 'aws-blocks'` で直接呼ぶ。バックエンドの型がフロントまで自動で伝播する
-   （コード生成ステップは無い）。
+   (if you can't find it, locate it with `find . -path '*@aws-blocks/blocks/docs/index.md' -not -path '*/.git/*'`).
+2. **Always do persistence and cloud abstractions through a Building Block.** Don't use local arrays,
+   your own files, or a separate local DB (the mock plays that role, so a Block deploys to AWS as-is).
+3. **The JSON-RPC transport is transparent.** Don't hand-assemble RPC payloads. Call the typed API
+   directly via `import { api } from 'aws-blocks'`. Backend types propagate to the frontend
+   automatically (there is no codegen step).
 
-## Block選定のルーティング（必ずこの順で）
-1. まず **決定木** を読む → `node_modules/@aws-blocks/blocks/docs/index.md`
-   （「何をしたいか」から適切なBlockを選ぶカタログ＋キーワード）。
-2. 次に **個別doc** を読む → `node_modules/@aws-blocks/blocks/docs/<package>.md`。
-3. 横断的なコア概念（`Scope` / `ApiNamespace` / `withAuth` / `RawRoute` / CORS / JSON-RPC）は
-   → `node_modules/@aws-blocks/blocks/docs/core.md`。
-4. 全体ガイド（アーキテクチャ・よくある間違い）は → `node_modules/@aws-blocks/blocks/README.md`。
+## Block selection routing (always in this order)
+1. First read the **decision tree** → `node_modules/@aws-blocks/blocks/docs/index.md`
+   (a catalog + keywords that pick the right Block from "what you want to do").
+2. Then read the **per-Block doc** → `node_modules/@aws-blocks/blocks/docs/<package>.md`.
+3. Cross-cutting core concepts (`Scope` / `ApiNamespace` / `withAuth` / `RawRoute` / CORS / JSON-RPC)
+   → `node_modules/@aws-blocks/blocks/docs/core.md`.
+4. The overall guide (architecture, common mistakes) → `node_modules/@aws-blocks/blocks/README.md`.
 
-主なBlockと用途（詳細は必ず上記docへ）:
+Main Blocks and their uses (always go to the docs above for details):
 
-| やりたいこと | Block | 同梱doc |
+| What you want to do | Block | Bundled doc |
 |---|---|---|
-| キーバリュー（キャッシュ/フラグ） | `KVStore` | bb-kv-store.md |
-| 構造化データ＋索引＋クエリ（**データの既定**） | `DistributedTable` | bb-distributed-table.md |
-| サーバーレスSQL（基本のPostgres互換） | `DistributedDatabase` (Aurora DSQL) | bb-distributed-data.md |
-| フルPostgres（FK/RLS/トリガー/大トランザクション） | `Database` (Aurora Serverless v2) | bb-data.md |
-| ファイル/アップロード | `FileBucket` | bb-file-bucket.md |
-| 認証（プロトタイプ/本番/OIDC） | `AuthBasic` / `AuthCognito` / `AuthOIDC` | bb-auth-*.md |
+| Key-value (cache/flags) | `KVStore` | bb-kv-store.md |
+| Structured data + indexes + queries (**the default for data**) | `DistributedTable` | bb-distributed-table.md |
+| Serverless SQL (basic Postgres-compatible) | `DistributedDatabase` (Aurora DSQL) | bb-distributed-data.md |
+| Full Postgres (FK/RLS/triggers/large transactions) | `Database` (Aurora Serverless v2) | bb-data.md |
+| Files/uploads | `FileBucket` | bb-file-bucket.md |
+| Auth (prototype/production/OIDC) | `AuthBasic` / `AuthCognito` / `AuthOIDC` | bb-auth-*.md |
 | WebSocket pub/sub | `Realtime` | bb-realtime.md |
-| 背景ジョブ / 定期実行 | `AsyncJob` / `CronJob` | bb-async-job.md / bb-cron-job.md |
-| AIエージェント / RAG | `Agent` / `KnowledgeBase` | bb-agent.md / bb-knowledge-base.md |
-| メール / 設定値 / 可観測性 | `EmailClient` / `AppSetting` / `Logger`等 | bb-email-client.md ほか |
+| Background jobs / scheduled runs | `AsyncJob` / `CronJob` | bb-async-job.md / bb-cron-job.md |
+| AI agents / RAG | `Agent` / `KnowledgeBase` | bb-agent.md / bb-knowledge-base.md |
+| Email / settings / observability | `EmailClient` / `AppSetting` / `Logger` etc. | bb-email-client.md and others |
 
-**データBlockの選び方**: 既定は `DistributedTable`。複数レコードをまたぐJOIN・多次元フィルタ・
-トランザクション・SQLの柔軟性が要るときだけSQL系へ。SQLが要るなら原則 `DistributedDatabase`
-（DSQL、アイドルコスト0）。FK/RLS/トリガー/3,000行超トランザクション/既存Postgres統合が必要な
-ときだけ `Database`（Aurora Serverless v2、最低0.5 ACUのアイドルコスト or コールドスタート有り）。
+**Choosing a data Block**: the default is `DistributedTable`. Go to SQL only when you need JOINs across
+multiple records, multi-dimensional filtering, transactions, or SQL flexibility. If you need SQL, prefer
+`DistributedDatabase` (DSQL, zero idle cost) as a rule. Use `Database` (Aurora Serverless v2, with a
+minimum 0.5 ACU idle cost or a cold start) only when you need FK/RLS/triggers, transactions over 3,000
+rows, or integration with existing Postgres.
 
-## 致命的な警告（インライン。詳細は rules-and-gotchas.md）
-- ⚠️ **Block ID（コンストラクタ第2引数）の改名 = リソース削除・再作成 = stateful Blockは
-  データ永久消失。** ID はデプロイ後は不変として扱う。
-- ⚠️ **認証は既定で全API公開。** ゲートは各メソッド内で `requireAuth()` / `requireRole()` を
-  明示的に呼んで初めて効く。書き忘れ＝認可漏れ。
-- ⚠️ **DSQL(`DistributedDatabase`)はDDL不可・FK不可・JSONB不可等の制約あり。** mockはこれらを
-  dev時に弾くが、**OCC（楽観的同時実行）競合は自然には起きない**ので `simulateConflict()` で
-  テストし、最終的に `npm run sandbox` で実機検証する。
-- ⚠️ **`--conditions=cdk` を外すと mock が CDK synth に混入する。** 必ず `npm run sandbox/deploy`
-  を使う（これらが `NODE_OPTIONS=--conditions=cdk` を自動設定する）。素の `cdk synth` を直接叩かない。
+## Critical warnings (inline; details in rules-and-gotchas.md)
+- ⚠️ **Renaming a Block ID (the 2nd constructor argument) = deleting and recreating the resource =
+  permanent data loss for stateful Blocks.** Treat IDs as immutable after deploy.
+- ⚠️ **Every API is public by default.** A gate only takes effect once you explicitly call
+  `requireAuth()` / `requireRole()` inside the method. Forgetting it = an authorization hole.
+- ⚠️ **DSQL (`DistributedDatabase`) has constraints: no DDL, no FK, no JSONB, and more.** The mock
+  rejects these at dev time, but **OCC (optimistic concurrency) conflicts do not arise naturally**, so
+  test them with `simulateConflict()` and finally verify on real infra with `npm run sandbox`.
+- ⚠️ **Dropping `--conditions=cdk` leaks the mock into CDK synth.** Always use `npm run sandbox/deploy`
+  (they set `NODE_OPTIONS=--conditions=cdk` automatically). Don't invoke a bare `cdk synth` directly.
 
-詳細・回避法・最小コード例 → [references/rules-and-gotchas.md](references/rules-and-gotchas.md)
+Details, workarounds, and minimal code examples → [references/rules-and-gotchas.md](references/rules-and-gotchas.md)
 
-## 開発ワークフロー（詳細は workflow-troubleshooting.md）
-| コマンド | 何が起きるか |
+## Development workflow (details in workflow-troubleshooting.md)
+| Command | What happens |
 |---|---|
-| `npm run dev` | 全Blockがmockでローカル起動（`.bb-data/`に永続化）。AWS不要・ホットリロード |
-| `npm run test:e2e` | 型付きクライアントでe2e。dev未起動なら自動起動 |
-| `npm run sandbox` / `npm run sandbox:destroy` | 実AWSへ高速デプロイ（Lambdaホットスワップ）/ 撤去 |
-| `npm run deploy` / `npm run destroy` | 本番フルデプロイ（CloudFormation）/ 撤去 |
+| `npm run dev` | All Blocks start locally as mocks (persisted under `.bb-data/`). No AWS, hot reload |
+| `npm run test:e2e` | e2e with the typed client. Auto-starts dev if it isn't running |
+| `npm run sandbox` / `npm run sandbox:destroy` | Fast deploy to real AWS (Lambda hot-swap) / teardown |
+| `npm run deploy` / `npm run destroy` | Full production deploy (CloudFormation) / teardown |
 
-高速反復: `npm run dev &` を背景起動し `npm run test:e2e` を反復（毎回サーバ再利用）。
-**APIへ curl/fetch を直接投げない**（接続トラブル調査時を除く）。型付きAPIを直接呼ぶ。
-詳細・症状→原因→修正表 → [references/workflow-troubleshooting.md](references/workflow-troubleshooting.md)
+Fast iteration: start `npm run dev &` in the background and re-run `npm run test:e2e` (reusing the
+server each time). **Don't fire curl/fetch directly at the API** (except when debugging connection
+issues). Call the typed API directly. Details and a symptom→cause→fix table →
+[references/workflow-troubleshooting.md](references/workflow-troubleshooting.md)
 
-## バックエンドの形（IFC層）
-バックエンドは `aws-blocks/index.ts` 1ファイルに集約される（= IFC層）。ここでBlockを
-インスタンス化し、`ApiNamespace` でAPIを定義し、`export` する。フロント(`src/`)は
-`import { api } from 'aws-blocks'` でそれを型安全に呼ぶ。CDK定義は任意の `aws-blocks/index.cdk.ts`
-（`BlocksStack.create({ backendCDKPath: './index.ts', ... })`）で、これも同じ `index.ts` を
-`cdk` condition で読み直してインフラを導出する。
+## The shape of the backend (IFC layer)
+The backend is consolidated into a single file, `aws-blocks/index.ts` (= the IFC layer). There you
+instantiate Blocks, define the API with `ApiNamespace`, and `export` it. The frontend (`src/`) calls it
+type-safely via `import { api } from 'aws-blocks'`. The CDK definition lives in an optional
+`aws-blocks/index.cdk.ts` (`BlocksStack.create({ backendCDKPath: './index.ts', ... })`), which re-reads
+that same `index.ts` under the `cdk` condition to derive the infrastructure.
 
-## 参照ファイル（必要に応じて読む）
-| ファイル | いつ読むか |
+## Reference files (read as needed)
+| File | When to read |
 |---|---|
-| [references/mental-model.md](references/mental-model.md) | conditional exportsの2階層・切替スイッチ・なぜ壊れるかを理解したいとき |
-| [references/rules-and-gotchas.md](references/rules-and-gotchas.md) | データ消失/認可/DSQL/conditionsの落とし穴を避けたいとき（実装前に一読推奨） |
-| [references/workflow-troubleshooting.md](references/workflow-troubleshooting.md) | コマンド・環境差・e2eループ・エラー解決をしたいとき |
+| [references/mental-model.md](references/mental-model.md) | To understand the two layers of conditional exports, the switches, and why things break |
+| [references/rules-and-gotchas.md](references/rules-and-gotchas.md) | To avoid the data-loss / authorization / DSQL / conditions footguns (recommended read before implementing) |
+| [references/workflow-troubleshooting.md](references/workflow-troubleshooting.md) | For commands, environment differences, the e2e loop, and resolving errors |
 
-そして忘れずに: **個別Blockの正確なAPIは、常に同梱の
-`node_modules/@aws-blocks/blocks/docs/<package>.md` を参照すること。** このSkillはそこへの
-案内役であり、APIの写しは持たない（バージョン不一致を避けるため）。
+And don't forget: **for the exact API of any individual Block, always consult the bundled
+`node_modules/@aws-blocks/blocks/docs/<package>.md`.** This skill is a guide to that location; it
+keeps no copy of the API (to avoid version mismatch).

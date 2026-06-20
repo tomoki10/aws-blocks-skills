@@ -1,78 +1,87 @@
-# 厳守ルールと致命的な落とし穴
+# Rules to follow and critical footguns
 
-AWS Blocks 特有で、知らないと事故る点を集約。各Blockの個別仕様は必ず同梱
-`node_modules/@aws-blocks/blocks/docs/<package>.md` も併読すること。
+A roundup of AWS Blocks-specific points that bite if you don't know them. Always read the per-Block
+spec in the bundled `node_modules/@aws-blocks/blocks/docs/<package>.md` alongside this.
 
-## 1. Block ID の改名 = データ永久消失（最重要）
-Block の第2引数（ID）は `scope/id` の `fullId` になり、それがAWSリソース名の素になる。
-**IDを変えると次回デプロイで旧リソースが削除され新リソースが作られる** → `KVStore` /
-`DistributedTable` / `Database` / `DistributedDatabase` / `FileBucket` などstateful Blockは
-**保存データが永久に失われる**。
+## 1. Renaming a Block ID = permanent data loss (most important)
+A Block's 2nd argument (the ID) becomes the `fullId` `scope/id`, which is the basis for the AWS resource
+name. **Changing the ID deletes the old resource and creates a new one on the next deploy** → for
+stateful Blocks like `KVStore` / `DistributedTable` / `Database` / `DistributedDatabase` / `FileBucket`,
+**the stored data is lost forever**.
 ```ts
-// デプロイ済み。これを 'todos' → 'todoItems' に変えると DynamoDB テーブルが作り直され全消去。
+// Already deployed. Changing this from 'todos' to 'todoItems' recreates the DynamoDB table and wipes everything.
 const todos = new DistributedTable(scope, 'todos', { /* ... */ });
 ```
-**回避**: デプロイ後のIDは不変として扱う。表示名や変数名の変更はOKだが、第2引数の文字列は変えない。
-どうしても変える必要があるならデータ移行（エクスポート→新Block→インポート）を設計する。
+**Avoid**: treat post-deploy IDs as immutable. Changing the display name or variable name is fine, but
+don't change the 2nd-argument string. If you truly must change it, design a data migration
+(export → new Block → import).
 
-## 2. 認証は既定で全公開。ゲートは手動
-`ApiNamespace` の各メソッドは**既定で誰でも呼べる**。認可は各メソッド内で `requireAuth()` /
-`requireRole()` を**明示的に呼んで初めて**効く。書き忘れ＝認可漏れ。
+## 2. Auth is public by default; gates are manual
+Every method on `ApiNamespace` is **callable by anyone by default**. Authorization only takes effect once
+you **explicitly call** `requireAuth()` / `requireRole()` inside the method. Forgetting it = an
+authorization hole.
 ```ts
 export const api = new ApiNamespace(scope, 'api', (context) => ({
   async listMyTodos() {
     const user = await auth.getCurrentUser(context); // or auth.requireAuth(context)
-    // user.userId でスコープする
+    // scope by user.userId
   },
   async adminPurge() {
-    await auth.requireRole(context, 'admin'); // これが無いと誰でも実行できてしまう
+    await auth.requireRole(context, 'admin'); // without this, anyone could run it
   },
 }));
 ```
-正確なメソッド名・gate関数は `docs/core.md` と `docs/bb-auth-*.md` を参照。
+For the exact method names and gate functions, see `docs/core.md` and `docs/bb-auth-*.md`.
 
-## 3. DSQL (`DistributedDatabase`) のparity限界
-ローカルmockは **PGlite（WASM版の本物のPostgres）＋ DSQL検証層**。PGliteはフルPostgresなので、
-DSQLの制約を**検証層が能動的に弾く**ことで本番との乖離を抑えている。
+## 3. DSQL (`DistributedDatabase`) parity limits
+The local mock is **PGlite (a real Postgres compiled to WASM) + a DSQL validation layer**. PGlite is full
+Postgres, so a validation layer **actively rejects** DSQL's constraints to keep dev close to production.
 
-dev時にエラーになる（=mockがコピーできている制約）:
-- 外部キー(`FOREIGN KEY`/`REFERENCES`)・`SERIAL`/`SEQUENCE`・トリガー・ビュー・PL/pgSQL・
-  `TRUNCATE`・`LISTEN/NOTIFY`・拡張・`JSONB`カラム・RLS・一時テーブル・`COLLATE` 等は**非対応**。
-- トランザクション: DDLとDML混在不可、1Tx=1DDLまで、**変異3,000行/Tx上限**。
-- DDL(CREATE/ALTER/DROP)は**アプリランタイム不可**。マイグレーションファイルでのみ実行
-  （本番のアプリLambdaは`dsql:DbConnect`のみ、マイグレーションLambdaが`dsql:DbConnectAdmin`を持つ、
-  というIAM分離を再現している）。
+Errors at dev time (= constraints the mock reproduces):
+- Foreign keys (`FOREIGN KEY`/`REFERENCES`), `SERIAL`/`SEQUENCE`, triggers, views, PL/pgSQL,
+  `TRUNCATE`, `LISTEN/NOTIFY`, extensions, `JSONB` columns, RLS, temporary tables, `COLLATE`, etc. are
+  **unsupported**.
+- Transactions: no mixing DDL and DML, at most 1 DDL per transaction, and a **3,000-row mutation limit
+  per transaction**.
+- DDL (CREATE/ALTER/DROP) is **not allowed at application runtime**. It runs only in migration files
+  (reproducing the IAM split where the production app Lambda has only `dsql:DbConnect` while the
+  migration Lambda has `dsql:DbConnectAdmin`).
 
-**mockが再現できないもの（要注意）**:
-- **OCC（楽観的同時実行制御）の競合は自然には起きない**（PGliteは単一接続）。`40001`
-  serialization failure をテストするには `simulateConflict()` を使う。`transactionWithRetry`
-  （`retryOnConflict`）のリトライ実装は確認できるが、本当の競合検知は実機でのみ。
-- ASYNCインデックスの可視化タイミング・分散コミットのレイテンシ・性能特性。
+**What the mock cannot reproduce (be careful)**:
+- **OCC (optimistic concurrency control) conflicts do not arise naturally** (PGlite is single-connection).
+  To test a `40001` serialization failure, use `simulateConflict()`. You can confirm the retry logic of
+  `transactionWithRetry` (`retryOnConflict`), but real conflict detection only happens on real infra.
+- The visibility timing of ASYNC indexes, distributed-commit latency, and performance characteristics.
 
-**結論**: スキーマ/構文レベルはローカルで十分検証できる。**同時実行・分散の実挙動は
-`npm run sandbox` で実機検証する。** SQLの使い分け（DSQL vs フルPostgresの`Database`）は
-`docs/index.md` の「Choosing a data block」に従う。
+**Conclusion**: schema/syntax-level checks can be validated locally well enough. **Verify the real
+behavior of concurrency and distribution on real infra with `npm run sandbox`.** For choosing between
+SQL options (DSQL vs. full Postgres `Database`), follow "Choosing a data block" in `docs/index.md`.
 
-## 4. `--conditions=cdk` を外すと mock が混入する
-CDK synth時に `cdk` condition が無いと、Blockが**mock実装のまま synth され**、意図しない
-（あるいは空の）インフラが生成される。フレームワークは `assertCdkConditionActive()` で
-これを検知して例外を投げる。
-- **必ず `npm run sandbox` / `npm run deploy` を使う**（`NODE_OPTIONS=--conditions=cdk` を自動設定）。
-- 素の `npx cdk synth/deploy` を直接叩く必要がある場合は `NODE_OPTIONS="--conditions=cdk"` を付ける。
-- Lambdaバンドルは別途 esbuild が `--conditions aws-runtime` を付ける（自前バンドル設定を上書きしない）。
+## 4. Dropping `--conditions=cdk` leaks the mock in
+During CDK synth, if the `cdk` condition is absent, Blocks are **synthed as their mock implementation**,
+producing unintended (or empty) infrastructure. The framework detects this with
+`assertCdkConditionActive()` and throws.
+- **Always use `npm run sandbox` / `npm run deploy`** (they set `NODE_OPTIONS=--conditions=cdk`
+  automatically).
+- If you must invoke a bare `npx cdk synth/deploy`, add `NODE_OPTIONS="--conditions=cdk"`.
+- The Lambda bundle separately gets `--conditions aws-runtime` from esbuild (don't override the built-in
+  bundle config).
 
-## 5. 永続化に「素のローカル手段」を使わない
-ローカル配列・`fs`での自前ファイル・別のローカルDBを使うと、デプロイ時にAWSへ繋がらない。
-**永続化は必ずBlockで行う**（mockがローカル動作を担うので、同じコードがそのままデプロイできる）。
-キャッシュ的な一時メモリでも、共有状態なら `KVStore` を使う。
+## 5. Don't use "plain local means" for persistence
+If you use local arrays, your own files via `fs`, or a separate local DB, they won't connect to AWS at
+deploy time. **Always persist through a Block** (the mock handles local behavior, so the same code
+deploys as-is). Even for cache-like ephemeral memory, use `KVStore` if the state is shared.
 
-## 6. JSON-RPCは透過。型はフロントまで伝播
-APIの呼び出しは型付きクライアントで直接行う。RPCのURL構築・ペイロード手組み・`fetch`直叩きを
-しない。バックエンドのメソッドシグネチャを変えると、フロントが即コンパイルエラーになる
-（コード生成ステップが無いのが強み）。デバッグで接続確認したいときだけ例外的にcurl可。
+## 6. JSON-RPC is transparent; types propagate to the frontend
+Make API calls through the typed client directly. Don't build RPC URLs, hand-assemble payloads, or call
+`fetch` directly. If you change a backend method signature, the frontend immediately fails to compile
+(the strength of having no codegen step). Only use curl exceptionally when you want to check connectivity
+while debugging.
 
-## 7. その他よくある詰まり
-- **`.bb-data/` はローカルmockの実データ**。消すとローカルの保存内容が消えるが、本番には無関係。
-- **`Database`（Aurora Serverless v2）はアイドルコスト/コールドスタートあり**（最低0.5 ACU）。
-  単純なPostgres互換で良ければ `DistributedDatabase`（DSQL, アイドル0）を優先。
-- **既存リソースの取り込み**は `fromExisting()` 系（例: 既存Postgres、既存テーブル）。詳細は各doc。
+## 7. Other common snags
+- **`.bb-data/` is the real data of the local mock.** Deleting it clears your locally saved contents, but
+  it is unrelated to production.
+- **`Database` (Aurora Serverless v2) has idle cost / cold start** (minimum 0.5 ACU). If simple
+  Postgres-compatibility is enough, prefer `DistributedDatabase` (DSQL, zero idle).
+- **Importing existing resources** uses the `fromExisting()` family (e.g. existing Postgres, existing
+  tables). See each doc for details.
