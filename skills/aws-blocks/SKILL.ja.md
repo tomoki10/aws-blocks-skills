@@ -1,7 +1,7 @@
 ---
 lang: ja
 source: SKILL.md
-source_sha: 458a0c8b46ab9adae2d0d48f60b37c5065407669
+source_sha: a8b455f5001d57d842c93cdfddaf30eb8a3452fc
 ---
 
 > 📖 これは [SKILL.md](SKILL.md) の日本語訳です。**正典は英語版**で、差異がある場合は英語が優先されます。
@@ -98,12 +98,28 @@ conditional exports によって実行コンテキストごとに**別の実装*
 （`BlocksStack.create({ backendCDKPath: './index.ts', ... })`）で、これも同じ `index.ts` を
 `cdk` condition で読み直してインフラを導出する。
 
+## ベストプラクティス（同梱版を読む。ここでの追加は少数）
+ベストプラクティスの大半は**SDKに同梱**されインストール済みバージョンと一致する — それを読み、再発明しない:
+`README.md` の **## Best practices** / **## Common mistakes** / **## Testing** / **Adding auth and data**、
+`docs/core.md`（`ApiError`/`isBlocksError` によるエラー処理、認証は既定で公開）、`docs/index.md`
+（Block選定）、各 `docs/<block>.md` の **## Best Practices** / **## Scaling & Cost**。ここに複製すると
+バージョン乖離を招く（例: 公開Webページの「1つの `KVStore` をキープレフィックスで分割」は同梱の
+`bb-kv-store.md`「インスタンス1つに論理エンティティ1つ」と矛盾する。同梱docに従う）。
+
+同梱docが述べていない横断的な実践だけ → [references/best-practices.ja.md](references/best-practices.ja.md):
+- アプリ1つに `Scope` は1つ。`index.ts` は薄く保ち業務ロジックは別モジュールへ抽出（mock Blockでの純粋
+  関数の単体テストも可能になる）。
+- dev/staging/prodでAWSアカウントを分け、環境固有設定（ドメイン・VPC・WAF・CORS）は実行時コードでなく
+  `index.cdk.ts` に置く。
+- 記述的なBlock IDとAPIメソッドのJSDocがAIコーディングエージェントに良いコンテキストを与える。
+
 ## 参照ファイル（必要に応じて読む）
 | ファイル | いつ読むか |
 |---|---|
 | [references/mental-model.ja.md](references/mental-model.ja.md) | conditional exportsの2階層・切替スイッチ・なぜ壊れるかを理解したいとき |
 | [references/rules-and-gotchas.ja.md](references/rules-and-gotchas.ja.md) | データ消失/認可/DSQL/conditionsの落とし穴を避けたいとき（実装前に一読推奨） |
 | [references/workflow-troubleshooting.ja.md](references/workflow-troubleshooting.ja.md) | コマンド・環境差・e2eループ・エラー解決をしたいとき |
+| [references/best-practices.ja.md](references/best-practices.ja.md) | ベストプラクティスの各トピックを正典の同梱ロケーションへ辿りたいとき＋少数の横断的な追加分 |
 
 そして忘れずに: **個別Blockの正確なAPIは、常に同梱の
 `node_modules/@aws-blocks/blocks/docs/<package>.md` を参照すること。** このSkillはそこへの

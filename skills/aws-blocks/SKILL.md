@@ -116,6 +116,22 @@ type-safely via `import { api } from 'aws-blocks'`. The CDK definition lives in 
 `aws-blocks/index.cdk.ts` (`BlocksStack.create({ backendCDKPath: './index.ts', ... })`), which re-reads
 that same `index.ts` under the `cdk` condition to derive the infrastructure.
 
+## Best practices (read the bundled ones; few additions here)
+
+Most best practices **ship in the SDK** and match the installed version — read those, don't reinvent:
+`README.md` **## Best practices** / **## Common mistakes** / **## Testing** / **Adding auth and data**;
+`docs/core.md` (error handling via `ApiError`/`isBlocksError`, auth-public-by-default); `docs/index.md`
+(block selection); each `docs/<block>.md` **## Best Practices** / **## Scaling & Cost**. Copying them here
+risks version drift (e.g. the public web page's "partition one `KVStore` by key prefix" contradicts the
+bundled `bb-kv-store.md`'s "one logical entity per instance" — follow the bundled doc).
+
+The few cross-cutting practices the bundled docs **don't** state → [references/best-practices.md](references/best-practices.md):
+- One `Scope` per app; keep `index.ts` thin and extract business logic into modules (also enables
+  unit-testing pure functions with mock Blocks).
+- Separate AWS accounts for dev/staging/prod; env-specific config (domain, VPC, WAF, CORS) in
+  `index.cdk.ts`, not runtime code.
+- Descriptive Block IDs + JSDoc on API methods give AI coding agents better context.
+
 ## Reference files (read as needed)
 
 | File                                                                             | When to read                                                                                               |
@@ -123,6 +139,7 @@ that same `index.ts` under the `cdk` condition to derive the infrastructure.
 | [references/mental-model.md](references/mental-model.md)                         | To understand the two layers of conditional exports, the switches, and why things break                    |
 | [references/rules-and-gotchas.md](references/rules-and-gotchas.md)               | To avoid the data-loss / authorization / DSQL / conditions footguns (recommended read before implementing) |
 | [references/workflow-troubleshooting.md](references/workflow-troubleshooting.md) | For commands, environment differences, the e2e loop, and resolving errors                                  |
+| [references/best-practices.md](references/best-practices.md)                     | To route best-practice topics to their canonical bundled location, plus the few cross-cutting additions     |
 
 And don't forget: **for the exact API of any individual Block, always consult the bundled
 `node_modules/@aws-blocks/blocks/docs/<package>.md`.** This skill is a guide to that location; it
