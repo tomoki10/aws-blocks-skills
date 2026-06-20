@@ -61,9 +61,14 @@ for the full trigger list.
 skills/
   aws-blocks/
     SKILL.md            # the skill (steering layer + router)
-    references/         # mental-model, rules-and-gotchas, workflow-troubleshooting
+    references/         # mental-model, rules-and-gotchas, workflow-troubleshooting, best-practices
     evals/evals.json    # trigger/behavior eval cases
-scripts/check-i18n.sh   # translation drift checker
+scripts/
+  check-i18n.sh         # English -> Japanese translation drift checker
+  check-upstream-docs.py  # upstream AWS docs drift checker
+  upstream/             # manifest.json + snapshots/ (last-reviewed upstream content)
+.github/workflows/check-upstream-docs.yml  # weekly upstream drift check
+.claude/commands/refresh-best-practices.md # AI-assisted reflection runbook
 ```
 
 ## Documentation languages
@@ -72,3 +77,25 @@ Skills ship in **English** (the canonical version the AI loads) with a **Japanes
 for comfortable reading by Japanese speakers. English is the source of truth: each `*.ja.md` records the
 `git hash-object` of its English source in frontmatter, so `scripts/check-i18n.sh` flags any translation
 that has drifted out of date.
+
+## Keeping content fresh
+
+Two drift checkers keep this skill in sync, both built on the same "record a baseline hash, flag when it
+changes" idea:
+
+1. **Translation drift** — `scripts/check-i18n.sh` compares each `*.ja.md`'s recorded `source_sha`
+   against the current `git hash-object` of its English source. Exit 0 = all in sync.
+2. **Upstream docs drift** — `scripts/check-upstream-docs.py` tracks the upstream AWS docs that some
+   skill content is derived from (currently the
+   [Best practices page](https://docs.aws.amazon.com/blocks/latest/devguide/best-practices.html)). It
+   re-fetches each page, normalizes the article body, and compares its sha256 against the baseline in
+   `scripts/upstream/manifest.json`. A stored snapshot under `scripts/upstream/snapshots/` lets it show a
+   **diff** of what changed. A weekly GitHub Actions workflow
+   (`.github/workflows/check-upstream-docs.yml`) runs it and opens an `upstream-drift` issue when it
+   changes.
+
+Because `best-practices.md` deliberately **routes** to the SDK-bundled docs rather than copying the web
+page (the bundled docs win on conflict), reflecting an upstream change is a judgement task, not a copy.
+When drift is detected, run **`/refresh-best-practices`** in Claude Code: it reads the diff, applies only
+the genuinely-new cross-cutting guidance, re-baselines the snapshot
+(`python3 scripts/check-upstream-docs.py --update`), and fixes any translation drift it caused.

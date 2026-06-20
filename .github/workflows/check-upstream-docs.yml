@@ -1,0 +1,76 @@
+name: Check upstream docs
+
+# Detects when the upstream AWS Blocks docs (currently the Best practices page) drift from the
+# version the skill content was last reviewed against. On drift it opens/updates a GitHub issue;
+# the actual reflection into the skill is done locally with Claude Code (/refresh-best-practices).
+# See scripts/check-upstream-docs.py and scripts/upstream/manifest.json.
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # Mondays 06:00 UTC
+  workflow_dispatch:        # allow manual runs
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run upstream drift check
+        id: check
+        run: |
+          set +e
+          OUT="$(python3 scripts/check-upstream-docs.py 2>&1)"
+          CODE=$?
+          echo "$OUT"
+          {
+            echo "exit_code=$CODE"
+            echo 'report<<__REPORT_EOF__'
+            echo "$OUT"
+            echo '__REPORT_EOF__'
+          } >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Open or update issue on drift
+        if: steps.check.outputs.exit_code == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPORT: ${{ steps.check.outputs.report }}
+        run: |
+          TITLE="Upstream docs changed: AWS Blocks best practices"
+          BODY_FILE="$(mktemp)"
+          {
+            echo "The upstream AWS Blocks documentation changed since it was last reviewed."
+            echo
+            echo "Reflect it locally with Claude Code by running \`/refresh-best-practices\`,"
+            echo "then re-baseline with \`python3 scripts/check-upstream-docs.py --update\`."
+            echo
+            echo "<details><summary>Detector output (diff)</summary>"
+            echo
+            echo '```diff'
+            printf '%s\n' "$REPORT"
+            echo '```'
+            echo
+            echo "</details>"
+          } > "$BODY_FILE"
+
+          # Idempotent label, then dedupe: comment on an existing open issue instead of opening a new one.
+          gh label create upstream-drift --color FBCA04 --description "Upstream AWS docs changed" 2>/dev/null || true
+          EXISTING="$(gh issue list --label upstream-drift --state open --json number --jq '.[0].number // empty')"
+          if [ -n "$EXISTING" ]; then
+            echo "Commenting on existing issue #$EXISTING"
+            gh issue comment "$EXISTING" --body-file "$BODY_FILE"
+          else
+            echo "Opening a new drift issue"
+            gh issue create --title "$TITLE" --label upstream-drift --body-file "$BODY_FILE"
+          fi
+
+      - name: Fail on fetch/parse error
+        if: steps.check.outputs.exit_code == '2'
+        run: |
+          echo "::warning::Upstream check could not fetch or parse a tracked page (exit 2). No drift issue opened; the detector or page structure may need attention."
+          exit 1
