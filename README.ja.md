@@ -1,7 +1,7 @@
 ---
 lang: ja
 source: README.md
-source_sha: e45d135114fe4688933c79c4eab4a34aa28ba3c9
+source_sha: 79285f8b3720c23ab9a3b4e55fe5067006bcf3f5
 ---
 
 > 📖 これは [README.md](README.md) の日本語訳です。**正典は英語版**で、差異がある場合は英語が優先されます。
@@ -16,25 +16,24 @@ source_sha: e45d135114fe4688933c79c4eab4a34aa28ba3c9
 
 ## AWS Blocks とは？
 
-[AWS Blocks](https://docs.aws.amazon.com/blocks/latest/devguide/what-is-blocks.html) は「AWS 上で
-フルスタックアプリを構築するためのバックエンドツールキット」です。各 Block（`KVStore`,
-`DistributedTable`, `FileBucket`, `AuthCognito`, `Realtime`, `Agent` など）は自己完結したバックエンド
-機能で、アプリコード・ローカル開発環境・実行に必要な AWS インフラを一体で持ちます。必要な Block を
-組み合わせると、AWS Blocks が AWS のベストプラクティスに沿ってインフラを自動定義します。
-
-核心は、Node.js の conditional exports による **1つのコード・3つの解決** です。`new
-DistributedTable(scope, 'todos', {...})` という同じ1行が、開発ではローカルのメモリ/ファイル mock として
-動き、デプロイ時には CDK construct（実 DynamoDB 等）になり、Lambda では AWS SDK を呼びます。「AWS
-アカウントなしでアプリ全体がローカルで動き……同じコードを変更せずに AWS へデプロイできる」のが特徴です。
+[AWS Blocks](https://docs.aws.amazon.com/blocks/latest/devguide/what-is-blocks.html) は AWS 上で
+フルスタックアプリを構築するためのバックエンドツールキットです。フレームワーク自体の説明 — Block の
+カタログや、Node.js の conditional exports が同じ1つのコードを3通り（ローカル mock → CDK construct →
+AWS SDK）に解決する仕組み — は、公式の
+[What is AWS Blocks?](https://docs.aws.amazon.com/blocks/latest/devguide/what-is-blocks.html) と
+[concepts](https://docs.aws.amazon.com/blocks/latest/devguide/concepts.html) ドキュメントを参照して
+ください。このリポジトリはフレームワークを説明し直すものではなく、コーディングエージェントがそれを
+正しく*使える*よう支援する Skill です。
 
 ## このスキルがすること
 
-フレームワークは正典ドキュメントを npm パッケージに同梱済みです。このスキルはその上に乗る **薄い操舵
+AWS Blocks はフレームワークに自前のドキュメントを同梱しています。このスキルはその上に乗る **薄い操舵
 レイヤー＋ルーター** であり、あえて API リファレンスにはしていません（インストール済みバージョンから
 乖離しないため）。具体的には:
 
-- **正しいメンタルモデルを与える** — なぜ同じコードが3通りに解決されるのか、IFC 層 / `Scope` /
-  `fullId` とは何か、なぜそれが重要か。
+- **正しいメンタルモデルを与える** — IFC 層 / `Scope` / `fullId` とは何か、構築時になぜそれが重要か
+  （フレームワーク自体の仕組みは公式の
+  [concepts](https://docs.aws.amazon.com/blocks/latest/devguide/concepts.html) ドキュメントにある）。
 - **同梱ドキュメントへ誘導する** — Block 個別の正確な API は
   `node_modules/@aws-blocks/blocks/docs/<package>.md` にあり、常にインストール済みバージョンと一致する。
   スキルは写しを持たず、そこへ案内する。

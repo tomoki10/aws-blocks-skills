@@ -9,25 +9,22 @@ broken deploys.
 
 ## What is AWS Blocks?
 
-[AWS Blocks](https://docs.aws.amazon.com/blocks/latest/devguide/what-is-blocks.html) is "a backend
-toolkit for building full-stack applications on AWS." Each Block (`KVStore`, `DistributedTable`,
-`FileBucket`, `AuthCognito`, `Realtime`, `Agent`, …) is a self-contained backend capability that bundles
-application code, a local dev setup, and the AWS infrastructure to run it. Combine the ones you need and
-AWS Blocks defines the infrastructure for you, following AWS best practices.
-
-The defining idea is **one codebase, three resolutions** via Node.js conditional exports: the same line —
-e.g. `new DistributedTable(scope, 'todos', {...})` — runs as a local in-memory/file mock in development,
-becomes a CDK construct (real DynamoDB, etc.) at deploy, and calls the AWS SDK in Lambda. "Your entire
-application runs locally without an AWS account … deploy the same code to AWS without changing anything."
+[AWS Blocks](https://docs.aws.amazon.com/blocks/latest/devguide/what-is-blocks.html) is a backend
+toolkit for building full-stack applications on AWS. For the framework itself — the Blocks catalog and
+how Node.js conditional exports make one codebase resolve three ways (local mock → CDK construct → AWS
+SDK) — see the official
+[What is AWS Blocks?](https://docs.aws.amazon.com/blocks/latest/devguide/what-is-blocks.html) and
+[concepts](https://docs.aws.amazon.com/blocks/latest/devguide/concepts.html) docs. This repo doesn't
+re-explain the framework; it's a Skill that helps coding agents *use* it correctly.
 
 ## What this skill does
 
-The framework already ships its canonical docs inside the npm package. This skill is a **thin steering
-layer + router** on top of them — intentionally *not* an API reference, so it can never drift from your
-installed version. It:
+AWS Blocks ships its own docs with the framework. This skill is a **thin steering layer + router** on
+top of them — intentionally *not* an API reference, so it can never drift from your installed version. It:
 
-- **Gives the correct mental model** — why the same code resolves three ways, what the IFC layer /
-  `Scope` / `fullId` are, and why that matters.
+- **Gives the correct mental model** — what the IFC layer / `Scope` / `fullId` are and why they matter
+  when you build (the framework mechanics themselves live in the official
+  [concepts](https://docs.aws.amazon.com/blocks/latest/devguide/concepts.html) docs).
 - **Routes to the bundled docs** — the canonical per-Block API lives in
   `node_modules/@aws-blocks/blocks/docs/<package>.md` and always matches your installed version; the
   skill points there instead of copying it.
