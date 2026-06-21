@@ -1,0 +1,12 @@
+{
+  "name": "aws-blocks-skills",
+  "description": "Claude Code skills for AWS Blocks (@aws-blocks/* infrastructure-from-code framework).",
+  "owner": { "name": "tomoki10", "url": "https://github.com/tomoki10" },
+  "plugins": [
+    {
+      "name": "aws-blocks",
+      "source": "./",
+      "description": "AWS Blocks guidance skill — mental model, bundled-docs routing, and footgun prevention."
+    }
+  ]
+}
