@@ -1,7 +1,7 @@
 ---
 lang: ja
 source: SKILL.md
-source_sha: a8b455f5001d57d842c93cdfddaf30eb8a3452fc
+source_sha: 65ae86f1aa1cdc5c3b23bcba1cdb793e01dc2468
 ---
 
 > 📖 これは [SKILL.md](SKILL.md) の日本語訳です。**正典は英語版**で、差異がある場合は英語が優先されます。

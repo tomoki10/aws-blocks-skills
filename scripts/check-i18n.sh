@@ -68,8 +68,40 @@ while IFS= read -r ja; do
   fi
 done < <(find . -name '*.ja.md' -not -path '*/.git/*' -not -path '*/node_modules/*' | sort)
 
+# *.ja.json files: source/source_sha stored in _meta JSON field
+while IFS= read -r ja; do
+  found=1
+  dir="$(dirname "$ja")"
+  src="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('_meta',{}).get('source',''))" "$ja" 2>/dev/null)"
+  rec="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('_meta',{}).get('source_sha',''))" "$ja" 2>/dev/null)"
+
+  if [ -z "$src" ] || [ -z "$rec" ]; then
+    printf 'MISCONFIG  %s  (missing _meta.source/_meta.source_sha)\n' "$ja"
+    status=1
+    continue
+  fi
+
+  eng="$dir/$src"
+  if [ ! -f "$eng" ]; then
+    printf 'MISSING-EN %s  (source not found: %s)\n' "$ja" "$eng"
+    status=1
+    continue
+  fi
+
+  cur="$(git hash-object "$eng")"
+  if [ "$cur" = "$rec" ]; then
+    printf 'OK         %s\n' "$ja"
+  else
+    printf 'STALE      %s\n' "$ja"
+    printf '           source=%s\n' "$eng"
+    printf '           recorded=%s current=%s\n' "$rec" "$cur"
+    printf '           -> re-translate from %s, then set: _meta.source_sha: %s\n' "$eng" "$cur"
+    status=1
+  fi
+done < <(find . -name '*.ja.json' -not -path '*/.git/*' -not -path '*/node_modules/*' | sort)
+
 if [ "$found" = 0 ]; then
-  echo 'No *.ja.md translation files found.'
+  echo 'No *.ja.md or *.ja.json translation files found.'
 fi
 
 exit "$status"

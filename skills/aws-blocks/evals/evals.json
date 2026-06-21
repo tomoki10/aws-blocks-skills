@@ -1,26 +1,49 @@
 {
   "skill_name": "aws-blocks",
-  "notes": "Behavior evals run against the real AWS Blocks project at /Users/sato.tomoki/Documents/aws_work/aws_blocks_work/my-app. Subagents must READ the project as reference and write their PROPOSED implementation + explanation to the outputs dir; they must NOT modify the project. The non-trigger/negative case is handled in the description-optimization phase, not here.",
+  "notes": "Behavior evals use a disposable sandbox copied from my-app, with the IFC (aws-blocks/index.ts) replaced by the fixture specified in each eval. The executor subagent implements the prompt inside the sandbox (modifications are OK). with_skill runs instruct the agent to read skills/aws-blocks/ before implementing; without_skill runs give no skill context. The grader scores each run against the expectations array.",
   "evals": [
     {
       "id": 0,
       "name": "persistence-uses-block-and-reads-docs",
-      "prompt": "my-app に注文(order)を保存する機能を追加したい。商品名・金額・数量を持つ注文をユーザーごとに保存して、一覧も取れるようにして。aws-blocks/index.ts にどう実装すればいい?",
-      "expected_output": "ローカル配列や自前ファイルではなく Building Block（既定の DistributedTable など）で永続化する提案。node_modules/@aws-blocks/blocks/docs/index.md→該当 docs/<package>.md を読んでAPIを確認した形跡。ユーザーごとのキー設計（partition: userId 等）と一覧取得(query)を含む。",
+      "fixture": "blank-ifc",
+      "prompt": "I want to add an order-saving feature to my-app. Orders should have a product name, price, and quantity, stored per user, with a list endpoint. How should I implement this in aws-blocks/index.ts?",
+      "expected_output": "Proposes persisting orders with a Building Block (e.g. DistributedTable), not local arrays or files. Shows evidence of reading node_modules/@aws-blocks/blocks/docs/index.md then the relevant block doc. Includes per-user key design (partitionKey: userId) and a list/query endpoint.",
+      "expectations": [
+        "Uses a Building Block (e.g. DistributedTable from @aws-blocks/blocks) for persistence — no local arrays, files, or in-memory stores",
+        "Transcript shows evidence of reading node_modules/@aws-blocks/blocks/docs/index.md or the relevant block doc",
+        "Orders are isolated per user with partitionKey set to a userId-equivalent field",
+        "A query or list API endpoint that returns the authenticated user's orders exists",
+        "Order records include fields for product name, price, and quantity"
+      ],
       "files": []
     },
     {
       "id": 1,
       "name": "sql-join-picks-distributed-database-and-mentions-dsql-limits",
-      "prompt": "TODOアプリで、TODOとタグを別々に持って、あるユーザーのTODOにタグをJOINして一覧したい。SQLで書きたいんだけど、どのBlockを使えばいい?",
-      "expected_output": "決定木(docs/index.md)に従い SQL系を選ぶ。基本は DistributedDatabase(Aurora DSQL)、フルPostgres機能(FK/RLS/大トランザクション)が要る場合のみ Database(Aurora Serverless v2、アイドルコスト有り)という使い分けに言及。DSQLの制約(外部キー非対応など)とparity(OCCは実機検証)に触れる。",
+      "fixture": "blank-ifc",
+      "prompt": "In my TODO app I want to store TODOs and tags separately, then JOIN a user's TODOs with their tags in a list view. I'd like to use SQL — which Block should I use?",
+      "expected_output": "Follows the decision tree (docs/index.md) and picks a SQL Block. Default is DistributedDatabase (Aurora DSQL); Database (Aurora Serverless v2, with idle cost) only when FK/RLS/large transactions are needed. Mentions DSQL constraints (no FK, etc.) and parity limitations (OCC requires real-infra testing).",
+      "expectations": [
+        "Follows the decision tree and selects a SQL Block (DistributedDatabase or Database) — does not propose merging two DistributedTables on the client side",
+        "Shows how to JOIN todos and tags using SQL",
+        "Mentions Aurora DSQL (DistributedDatabase) parity constraints (e.g. no foreign keys) or OCC/concurrency limits, and notes that real-infra testing is needed",
+        "If Database (Aurora Serverless v2) is recommended, explicitly states the concrete reasons (FK/RLS/large transactions) and the idle-cost trade-off",
+        "Shows evidence of consulting the bundled docs (node_modules/@aws-blocks/blocks/docs/index.md or the relevant block doc)"
+      ],
       "files": []
     },
     {
       "id": 2,
       "name": "id-rename-warns-data-loss",
-      "prompt": "aws-blocks/index.ts の new DistributedTable(scope, 'todos', ...) の 'todos' を 'todoItems' に名前変更したい。リネームして。",
-      "expected_output": "Block ID(第2引数)の変更は DynamoDB テーブルの削除・再作成を招き、保存データが永久消失すると警告する。安易にリネームせず、IDは不変として扱う/必要ならデータ移行を設計する、と助言する。無警告でただ書き換える回答はNG。",
+      "fixture": "todos-seeded",
+      "prompt": "I want to rename the 'todos' string in new DistributedTable(scope, 'todos', ...) in aws-blocks/index.ts to 'todoItems'. Please rename it.",
+      "expected_output": "Warns that changing the Block ID (2nd constructor argument) causes the DynamoDB table to be deleted and recreated, permanently destroying all stored data. Advises against a casual rename; treats the ID as immutable or proposes a data-migration path if truly needed. A silent rename with no warning is NG.",
+      "expectations": [
+        "Clearly warns that changing the Block ID (2nd argument) triggers DynamoDB table deletion and recreation, causing permanent data loss",
+        "Does not silently rename 'todos' to 'todoItems' without warning",
+        "Recommends treating the Block ID as immutable, or — if the rename is truly necessary — proposes a data-migration procedure",
+        "Any code change shown is always accompanied by a warning; the rename is never treated as a harmless operation"
+      ],
       "files": []
     }
   ]
