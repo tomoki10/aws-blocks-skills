@@ -1,7 +1,7 @@
 ---
 lang: ja
 source: README.md
-source_sha: 79285f8b3720c23ab9a3b4e55fe5067006bcf3f5
+source_sha: 5e803dfd2f9294f6ba188428375a800a52972a55
 ---
 
 > 📖 これは [README.md](README.md) の日本語訳です。**正典は英語版**で、差異がある場合は英語が優先されます。
@@ -13,6 +13,18 @@ source_sha: 79285f8b3720c23ab9a3b4e55fe5067006bcf3f5
 [Skill](https://docs.claude.com/en/docs/claude-code/skills) です。正しいメンタル
 モデルを与え、フレームワーク同梱のドキュメントへ誘導し、データ消失やデプロイ失敗を招く落とし穴を
 未然に防ぎます。
+
+## インストール
+
+このリポジトリは Claude Code の plugin marketplace（self-host）です。`aws-blocks`
+plugin を次のコマンドでインストールします:
+
+```
+/plugin marketplace add tomoki10/aws-blocks-skills
+/plugin install aws-blocks@aws-blocks-skills
+```
+
+インストール後、スキルは自動で起動します（[いつ起動するか](#いつ起動するか)を参照）。
 
 ## AWS Blocks とは？
 

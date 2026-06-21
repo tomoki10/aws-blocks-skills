@@ -7,6 +7,18 @@ broken deploys.
 
 日本語版: [README.ja.md](README.ja.md)
 
+## Install
+
+This repo is a self-hosted Claude Code plugin marketplace. Install the `aws-blocks`
+plugin with:
+
+```
+/plugin marketplace add tomoki10/aws-blocks-skills
+/plugin install aws-blocks@aws-blocks-skills
+```
+
+The skill then activates automatically (see [When it activates](#when-it-activates)).
+
 ## What is AWS Blocks?
 
 [AWS Blocks](https://docs.aws.amazon.com/blocks/latest/devguide/what-is-blocks.html) is a backend

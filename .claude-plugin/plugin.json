@@ -1,0 +1,10 @@
+{
+  "name": "aws-blocks",
+  "description": "AWS Blocks (@aws-blocks/* infrastructure-from-code framework) guidance for Claude Code — mental model, bundled-docs routing, and critical footgun prevention (data-loss on Block-ID rename, --conditions=cdk, DSQL parity).",
+  "version": "0.1.0",
+  "author": { "name": "tomoki10", "url": "https://github.com/tomoki10" },
+  "homepage": "https://github.com/tomoki10/aws-blocks-skills",
+  "repository": "https://github.com/tomoki10/aws-blocks-skills",
+  "license": "MIT",
+  "keywords": ["aws", "aws-blocks", "infrastructure-from-code", "cdk", "skill"]
+}
