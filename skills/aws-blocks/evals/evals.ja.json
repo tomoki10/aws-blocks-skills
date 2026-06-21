@@ -1,0 +1,55 @@
+{
+  "_meta": {
+    "lang": "ja",
+    "source": "evals.json",
+    "source_sha": "c4315a681169ea1e4fc1a2fafbb22c858f0e9149"
+  },
+  "skill_name": "aws-blocks",
+  "notes": "挙動 eval は my-app を使い捨てサンドボックスにコピーし、IFC（aws-blocks/index.ts）を各 eval の fixture で置き換えて使用します。executor サブエージェントはサンドボックス内でプロンプトを実装します（変更 OK）。with_skill 実行では実装前に skills/aws-blocks/ を読むよう指示し、without_skill 実行ではスキルコンテキストを与えません。grader は expectations 配列に対して各 run を採点します。",
+  "evals": [
+    {
+      "id": 0,
+      "name": "persistence-uses-block-and-reads-docs",
+      "fixture": "blank-ifc",
+      "prompt": "my-app に注文(order)を保存する機能を追加したい。商品名・金額・数量を持つ注文をユーザーごとに保存して、一覧も取れるようにして。aws-blocks/index.ts にどう実装すればいい?",
+      "expected_output": "ローカル配列や自前ファイルではなく Building Block（既定の DistributedTable など）で永続化する提案。node_modules/@aws-blocks/blocks/docs/index.md→該当 docs/<package>.md を読んでAPIを確認した形跡。ユーザーごとのキー設計（partition: userId 等）と一覧取得(query)を含む。",
+      "expectations": [
+        "注文の永続化に Building Block（DistributedTable など @aws-blocks/blocks が提供するもの）を使っており、ローカル配列・ファイル・インメモリストアを使っていない",
+        "transcript に node_modules/@aws-blocks/blocks/docs/index.md または該当 Block のドキュメントを読んだ形跡がある",
+        "注文がユーザーごとに分離されており、partitionKey が userId 相当のフィールドになっている",
+        "ユーザーの注文一覧を返す query または list の API エンドポイントが存在する",
+        "注文レコードに商品名・金額・数量に相当するフィールドが含まれている"
+      ],
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "sql-join-picks-distributed-database-and-mentions-dsql-limits",
+      "fixture": "blank-ifc",
+      "prompt": "TODOアプリで、TODOとタグを別々に持って、あるユーザーのTODOにタグをJOINして一覧したい。SQLで書きたいんだけど、どのBlockを使えばいい?",
+      "expected_output": "決定木(docs/index.md)に従い SQL系を選ぶ。基本は DistributedDatabase(Aurora DSQL)、フルPostgres機能(FK/RLS/大トランザクション)が要る場合のみ Database(Aurora Serverless v2、アイドルコスト有り)という使い分けに言及。DSQLの制約(外部キー非対応など)とparity(OCCは実機検証)に触れる。",
+      "expectations": [
+        "決定木に従い SQL 系 Block（DistributedDatabase または Database）を選択しており、2つの DistributedTable をクライアント側でマージする実装を提案していない",
+        "todo と tag を SQL の JOIN で結合する方法を示している",
+        "Aurora DSQL（DistributedDatabase）の parity 制約（外部キー非対応など）または OCC/並行性について言及し、実機検証が必要と述べている",
+        "Database（Aurora Serverless v2）を推薦する場合は、FK/RLS/大トランザクション等の具体的な理由とアイドルコストの trade-off を明示している",
+        "bundled docs（node_modules/@aws-blocks/blocks/docs/index.md または該当 doc）を参照した形跡がある"
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "id-rename-warns-data-loss",
+      "fixture": "todos-seeded",
+      "prompt": "aws-blocks/index.ts の new DistributedTable(scope, 'todos', ...) の 'todos' を 'todoItems' に名前変更したい。リネームして。",
+      "expected_output": "Block ID(第2引数)の変更は DynamoDB テーブルの削除・再作成を招き、保存データが永久消失すると警告する。安易にリネームせず、IDは不変として扱う/必要ならデータ移行を設計する、と助言する。無警告でただ書き換える回答はNG。",
+      "expectations": [
+        "Block ID（第2引数）の変更が DynamoDB テーブルの削除・再作成を招き、保存データが永久消失する旨を明確に警告している",
+        "警告なしに黙って 'todos' を 'todoItems' にリネームする実装を行っていない",
+        "Block ID を不変として扱うことを推奨するか、または真に必要な場合はデータ移行手順を提案している",
+        "コード変更を示す場合も必ず警告を伴っており、無害なリネームとして扱っていない"
+      ],
+      "files": []
+    }
+  ]
+}
